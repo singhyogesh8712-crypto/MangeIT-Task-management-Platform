@@ -5,6 +5,7 @@ import { AuthContext } from "../context/AuthContext";
 
 function Projects() {
   const [projects, setProjects] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
   const [name, setName] = useState("");
   const [userId, setUserId] = useState("");
   const [addingTo, setAddingTo] = useState(null); // project id where member input is shown
@@ -13,10 +14,14 @@ function Projects() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const { user } = useContext(AuthContext);
 
-  const fetchProjects = async () => {
+  const fetchProjectsAndUsers = async () => {
     try {
-      const res = await API.get("/projects");
-      setProjects(res.data);
+      const [projectRes, usersRes] = await Promise.all([
+        API.get("/projects"),
+        API.get("/users").catch(() => ({ data: [] }))
+      ]);
+      setProjects(projectRes.data);
+      setAllUsers(usersRes.data || []);
     } catch (err) {
       console.log(err);
     } finally {
@@ -32,7 +37,7 @@ function Projects() {
       await API.post("/projects", { name: name.trim() });
       setName("");
       setShowCreateForm(false);
-      fetchProjects();
+      fetchProjectsAndUsers();
     } catch {
       alert("Only Admins can create projects.");
     } finally {
@@ -46,14 +51,14 @@ function Projects() {
       await API.put(`/projects/${projectId}/add-member`, { userId: userId.trim() });
       setUserId("");
       setAddingTo(null);
-      fetchProjects();
+      fetchProjectsAndUsers();
     } catch {
       alert("Could not add member. Check the user ID.");
     }
   };
 
   useEffect(() => {
-    fetchProjects();
+    fetchProjectsAndUsers();
   }, []);
 
   return (
@@ -173,6 +178,7 @@ function Projects() {
                 addingTo={addingTo}
                 setAddingTo={setAddingTo}
                 onAddMember={addMember}
+                allUsers={allUsers}
               />
             ))}
           </div>
@@ -182,7 +188,7 @@ function Projects() {
   );
 }
 
-function ProjectCard({ project: p, isAdmin, userId, setUserId, addingTo, setAddingTo, onAddMember }) {
+function ProjectCard({ project: p, isAdmin, userId, setUserId, addingTo, setAddingTo, onAddMember, allUsers }) {
   const isAddingHere = addingTo === p._id;
 
   return (
@@ -232,15 +238,17 @@ function ProjectCard({ project: p, isAdmin, userId, setUserId, addingTo, setAddi
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
               <div className="form-group">
-                <label className="form-label">User ID</label>
-                <input
+                <label className="form-label">Select User</label>
+                <select
                   className="form-control"
-                  placeholder="Paste user ID…"
                   value={userId}
-                  autoFocus
                   onChange={(e) => setUserId(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") onAddMember(p._id); }}
-                />
+                >
+                  <option value="">Select a member...</option>
+                  {allUsers.map((u) => (
+                    <option key={u._id} value={u._id}>{u.name}</option>
+                  ))}
+                </select>
               </div>
               <div className="flex gap-2">
                 <button

@@ -35,24 +35,28 @@ function Tasks() {
 
   const fetchData = async () => {
     try {
-      const [taskRes, projectRes] = await Promise.all([
+      const [taskRes, projectRes, usersRes] = await Promise.all([
         API.get("/tasks"),
         API.get("/projects"),
+        API.get("/users").catch(() => ({ data: null }))
       ]);
 
       setTasks(taskRes.data);
       setProjects(projectRes.data);
 
-      const allUsers = [];
-      const seen = new Set();
-      projectRes.data.forEach((p) => {
-        (p.members || []).forEach((m) => {
-          if (!seen.has(m._id)) {
-            seen.add(m._id);
-            allUsers.push(m);
-          }
+      let allUsers = usersRes.data;
+      if (!allUsers) {
+        allUsers = [];
+        const seen = new Set();
+        projectRes.data.forEach((p) => {
+          (p.members || []).forEach((m) => {
+            if (!seen.has(m._id)) {
+              seen.add(m._id);
+              allUsers.push(m);
+            }
+          });
         });
-      });
+      }
       setUsers(allUsers);
     } catch (err) {
       console.log(err);
